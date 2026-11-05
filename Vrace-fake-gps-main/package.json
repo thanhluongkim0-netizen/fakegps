@@ -1,0 +1,11 @@
+{
+  "name": "stationary-run-simulator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test simulator/tests/*.test.mjs experiments/*.test.mjs",
+    "test:apk": "python -m unittest discover -s experiments/tests -v"
+  },
+  "engines": { "node": ">=20" }
+}

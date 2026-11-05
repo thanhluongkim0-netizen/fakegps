@@ -1,0 +1,44 @@
+plugins { id 'com.android.application' }
+def mapsKeyFile = rootProject.file('../.tools/gps-controller-maps-api-key.txt')
+def mapsKey = System.getenv('GPS_CONTROLLER_MAPS_KEY') ?: (mapsKeyFile.exists() ? mapsKeyFile.getText('UTF-8').trim().replace('\uFEFF', '') : '')
+if (mapsKey && !(mapsKey ==~ /AIza[0-9A-Za-z_-]{35}/)) throw new GradleException('Invalid Maps SDK key; key contents are not logged')
+android {
+    namespace 'vn.stationary.route'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'vn.stationary.route'
+        minSdk 26
+        targetSdk 34
+        versionCode 4
+        versionName '1.1.0'
+        manifestPlaceholders = [mapsApiKey: mapsKey ?: 'AIza00000000000000000000000000000000000']
+        buildConfigField 'boolean', 'MAPS_CONFIGURED', mapsKey ? 'true' : 'false'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    buildFeatures { buildConfig true }
+    signingConfigs {
+        controller {
+            if (System.getenv('GPS_CONTROLLER_KEYSTORE')) {
+                storeFile file(System.getenv('GPS_CONTROLLER_KEYSTORE'))
+                storePassword 'controller-build'
+                keyAlias 'gps-controller'
+                keyPassword 'controller-build'
+                storeType 'PKCS12'
+            }
+        }
+    }
+    buildTypes { release { minifyEnabled false } }
+    if (System.getenv('GPS_CONTROLLER_KEYSTORE')) {
+        buildTypes.debug.signingConfig signingConfigs.controller
+        buildTypes.release.signingConfig signingConfigs.controller
+    }
+}
+dependencies {
+    implementation project(':core')
+    implementation 'com.google.android.gms:play-services-location:21.3.0'
+    implementation 'com.google.android.gms:play-services-maps:19.2.0'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'androidx.test:core:1.6.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+}

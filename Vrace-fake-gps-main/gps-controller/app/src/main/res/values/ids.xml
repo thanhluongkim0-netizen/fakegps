@@ -1,0 +1,5 @@
+<resources>
+    <item name="route_web" type="id" />
+    <item name="route_map" type="id" />
+    <item name="map_done" type="id" />
+</resources>

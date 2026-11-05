@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <!-- This dedicated test controller requires the documented Fused mock API permission.
+         Lint also flags the merged debug manifest; keep this exception on this permission only. -->
+    <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION" tools:ignore="ProtectedPermissions,MockLocation" />
+</manifest>

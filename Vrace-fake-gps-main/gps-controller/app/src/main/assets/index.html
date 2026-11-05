@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none';">
+<title>Tuyến GPS · Mô phỏng</title>
+<style>
+:root{color-scheme:light;--ink:#152638;--muted:#617486;--mint:#3ccfb1;--dark:#101c2c}
+*{box-sizing:border-box}body{margin:0;background:#eff3f5;color:var(--ink);font:15px system-ui,sans-serif}
+header{background:var(--dark);padding:22px 20px 26px;color:white}header small{color:#9db3c5;font-size:11px;letter-spacing:2px}
+h1{font-size:28px;letter-spacing:-1px;margin:7px 0 11px;font-weight:750}.tag{display:inline-flex;gap:7px;align-items:center;border:1px solid #526072;border-radius:20px;padding:5px 9px;font-size:11px;color:#c9f7ea}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--mint)}header button{float:right;background:#253447;color:white;border-color:#46566a;font-size:12px;padding:9px}
+main{padding:0 14px 30px;max-width:720px;margin:auto}.card{background:white;border:1px solid #dce4e9;border-radius:18px;padding:17px;margin:14px 0;box-shadow:0 3px 12px #182c4010}
+.status{margin-top:-12px;position:relative}h2{font-size:16px;margin:0 0 11px;letter-spacing:-.2px}
+#state{font-size:11px;background:#e5f7f1;color:#136752;border-radius:20px;padding:5px 8px;float:right}
+p{line-height:1.5;margin:8px 0;color:var(--muted)}#message{font-size:13px;min-height:37px}
+.map-preview{padding:18px;border:1px solid #dce4e9;border-radius:13px;background:#f4f8fb}.map-preview button{width:100%;margin-top:9px}#routeSummary{font-size:13px;overflow-wrap:anywhere}
+button{font:inherit;border:1px solid #d4dfe5;background:white;color:var(--ink);border-radius:10px;padding:11px 12px;font-weight:650}
+button:disabled{opacity:.4}button:active:not(:disabled){transform:translateY(1px)}.primary{background:var(--mint);border-color:var(--mint);color:#083f34}.danger{color:#ad443c}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row button{font-size:12px;padding:9px}.row.between{justify-content:space-between}
+.hint{font-size:12px}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:17px}
+.metric small{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}.metric strong{font-size:24px;letter-spacing:-1px}.metric span{font-size:11px;color:var(--muted)}
+.track{background:#e9eff2;height:6px;border-radius:10px;margin:14px 0 7px;overflow:hidden}.track div{height:100%;background:var(--mint);width:0}
+.speed{display:flex;align-items:baseline;gap:5px}.speed strong{font-size:36px;letter-spacing:-1px}.speed span{font-size:12px;color:var(--muted)}#pace{margin-left:auto;font-size:14px;font-weight:650}
+input[type=range]{width:100%;accent-color:#21a990;margin:14px 0;height:28px}.preset{display:flex;gap:7px}.preset button{flex:1;font-size:12px;padding:8px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}.actions button{font-size:13px}#hold{grid-column:1/-1}
+details{margin-top:12px}summary{color:#587185;font-size:12px;cursor:pointer}textarea{width:100%;margin:10px 0;border:1px solid #ccd8df;border-radius:9px;padding:10px;font:13px monospace;min-height:75px;resize:vertical}
+.steps{font-size:12px;color:#526779;line-height:1.65;margin:0;padding-left:19px}.steps li{margin:7px 0}
+#toast{position:fixed;bottom:20px;left:16px;right:16px;background:#152638;color:white;padding:13px;border-radius:12px;display:none;z-index:10;font-size:13px}
+.footer{text-align:center;font-size:11px;color:#778a99;margin-top:20px}
+</style>
+</head>
+<body>
+<header><button id="setup">Thiết lập</button><small>ROUTE LAB / ANDROID</small><h1>Tuyến GPS</h1><span class="tag"><span class="dot"></span>MÔ PHỎNG VỊ TRÍ</span></header>
+<main>
+<section class="card status"><span id="state">Sẵn sàng</span><h2>Điều khiển tuyến</h2><p id="message">Chọn tuyến rồi đặt điện thoại tại A.</p>
+<div class="metrics">
+<div class="metric"><small>Đã phát</small><strong id="distance">0</strong> <span>m</span></div>
+<div class="metric"><small>Thời gian phát</small><strong id="elapsed">00:00</strong></div>
+<div class="metric"><small>Toàn tuyến</small><strong id="total">0</strong> <span>m</span></div>
+</div><div class="track"><div id="progress"></div></div></section>
+<section class="card"><div class="row between"><h2>Chọn tuyến A → B</h2><button id="center">◎ Vị trí hiện tại</button></div>
+<p class="hint" id="locationHint" role="status" aria-live="polite"></p>
+<div class="map-preview"><strong>Google Maps</strong><p id="routeSummary">Chưa chọn tuyến.</p><button id="openMap" class="primary">Chọn tuyến trên Google Maps</button></div>
+<p class="hint" id="mapHint">Mở Google Maps, chạm thêm A, điểm rẽ và B rồi bấm Xong. Bản đồ cần mạng; tọa độ nhập tay vẫn dùng được khi offline.</p>
+<div class="row"><button id="undo">↶ Bỏ điểm cuối</button><button id="clear">Tuyến mới</button><button id="demo">Tuyến thử ~500 m</button></div>
+<details><summary>Nhập tọa độ để đặt A hoặc nhập cả tuyến</summary><p class="hint">Một dòng đặt điểm A và tâm bản đồ; chọn thêm B để có tuyến. Từ hai dòng trở lên tạo tuyến A → B, mỗi dòng là vĩ độ, kinh độ.</p><textarea id="coordinates" placeholder="10.8784, 106.7972" aria-label="Tọa độ điểm A hoặc từng điểm của tuyến"></textarea><button id="apply">Dùng tọa độ</button></details>
+<p class="hint">Các điểm được nối trực tiếp. Thêm điểm ở từng chỗ rẽ để tuyến đi theo đường bạn chọn.</p>
+</section>
+<section class="card"><h2>Tốc độ phát</h2><div class="speed"><strong id="speedValue">8.0</strong><span>km/h</span><span id="pace">7:30 /km</span></div>
+<input id="speed" type="range" min="0" max="25" step="0.5" value="8" aria-label="Tốc độ km trên giờ">
+<div class="preset"><button data-speed="5">5 · Đi bộ</button><button data-speed="8">8 · Chạy nhẹ</button><button data-speed="12">12 · Chạy nhanh</button></div>
+<div class="actions"><button class="primary" id="hold">① Đặt tại A / giữ vị trí</button><button class="primary" id="play">② Phát tuyến</button><button id="pause">Tạm dừng</button><button class="danger" id="stop">Tắt phát GPS</button><button id="follow">Xem vị trí đang phát</button></div>
+</section>
+<section class="card"><h2>Dùng với vRace thử nghiệm</h2><ol class="steps">
+<li>Trong Tùy chọn nhà phát triển, chọn <b>Tuyến GPS · Mô phỏng</b> ở mục Ứng dụng vị trí mô phỏng.</li>
+<li>Chọn tuyến, bấm <b>Đặt tại A</b> và chờ báo đang giữ tại A.</li>
+<li>Sang vRace thử nghiệm và bắt đầu phiên. Quay lại đây bấm <b>Phát tuyến</b>, rồi sang vRace quan sát.</li>
+<li>Khi tới B, app vẫn giữ vị trí B. <b>Dừng phiên trong vRace trước</b>, rồi quay lại đây bấm Tắt phát GPS.</li>
+</ol><p class="hint">App phát vị trí mô phỏng và không điều khiển nút ghi/lưu của vRace. Số liệu trên đây là mô phỏng; việc nhận và xử lý trong vRace cần kiểm thử riêng.</p></section>
+<div class="footer">Tuyến lưu trên điện thoại · Không cần tài khoản</div>
+</main><div id="toast" role="status"></div>
+<script>
+'use strict';
+const native = window.Android || {config:()=> '{}',snapshot:()=> '{"state":"IDLE","ready":false,"message":"Bản xem trước; cần cài app Android để phát GPS."}',saveConfig:()=>{},command:()=>notice('Cần app Android để phát GPS.'),settings:()=>{},currentLocation:()=>{},cancelLocation:()=>{},openMap:()=>notice('Cần cài app Android để mở Google Maps.')};
+const byId=id=>document.getElementById(id);
+let cfg={};try{cfg=JSON.parse(native.config());}catch(e){}
+let points=Array.isArray(cfg.points)&&cfg.points.length<=300&&cfg.points.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=85&&Math.abs(p[1])<=180)?cfg.points:[];
+let lat=Number.isFinite(cfg.latitude)?Math.max(-85,Math.min(85,cfg.latitude)):10.7769, lon=Number.isFinite(cfg.longitude)?cfg.longitude:106.7009, zoom=Number.isFinite(cfg.zoom)?Math.max(3,Math.min(21,cfg.zoom)):16;
+let speed=Number.isFinite(cfg.speed)?Math.max(0,Math.min(25,cfg.speed)):8, current={state:'IDLE',ready:false}, marker=null, toastTimer, editingSpeed=false, locating=false;
+const rad=v=>v*Math.PI/180;
+function notice(text){byId('toast').textContent=text;byId('toast').style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>byId('toast').style.display='none',4500);}
+function save(){native.saveConfig(JSON.stringify({points,speed,latitude:lat,longitude:lon,zoom}));}
+function length(){let sum=0;for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i],h=Math.sin(rad(b[0]-a[0])/2)**2+Math.cos(rad(a[0]))*Math.cos(rad(b[0]))*Math.sin(rad(b[1]-a[1])/2)**2;sum+=6371008.8*2*Math.asin(Math.sqrt(Math.min(1,h)));}return sum;}
+function editable(){return current.state==='IDLE';}
+function draw(){byId('routeSummary').textContent=points.length?points.length+' điểm · A: '+points[0].map(v=>v.toFixed(6)).join(', ')+(points.length>1?' · B: '+points.at(-1).map(v=>v.toFixed(6)).join(', '):' · Chọn thêm B để có tuyến'):'Chưa chọn tuyến.';if(editable())byId('total').textContent=Math.round(length()).toLocaleString('vi-VN');}
+function openMap(){cancelLocation();save();native.openMap(JSON.stringify({points,latitude:lat,longitude:lon,zoom}));}
+function applyMapSelection(value){let result;try{result=JSON.parse(value);}catch(e){return;}refresh();const valid=Array.isArray(result.points)&&result.points.length<=300&&result.points.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=85&&Math.abs(p[1])<=180);if(!valid)return;const a=result.latitude,b=result.longitude,z=result.zoom;if(Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a)<=85&&Math.abs(b)<=180){lat=a;lon=b;}if(Number.isFinite(z))zoom=Math.max(3,Math.min(21,z));if(editable()){cancelLocation();points=result.points;updateRoute();}else save();}
+function updateRoute(){byId('coordinates').value=points.map(p=>p.map(v=>v.toFixed(6)).join(', ')).join('\n');save();draw();}
+function centerOn(a,b){if(!Number.isFinite(a)||!Number.isFinite(b))return;lat=Math.max(-85,Math.min(85,a));lon=((b+180)%360+360)%360-180;draw();save();}
+window.centerOn=centerOn;
+function locationStatus(searching,message){locating=searching;byId('center').disabled=locating||!editable();byId('center').textContent=locating?'Đang định vị…':'◎ Vị trí hiện tại';byId('locationHint').textContent=message;}
+window.locationStatus=locationStatus;
+function currentPositionFound(a,b){if(!locating||!editable())return;centerOn(a,b);locationStatus(false,'Đã đặt tâm Google Maps tại vị trí hiện tại. Bấm Chọn tuyến để chọn A/B.');}
+function cancelLocation(){native.cancelLocation();locationStatus(false,'');}
+byId('openMap').onclick=openMap;
+byId('center').onclick=()=>native.currentLocation();byId('setup').onclick=()=>native.settings();
+byId('undo').onclick=()=>{if(editable()){cancelLocation();points.pop();updateRoute();}};
+byId('clear').onclick=()=>{if(editable()){cancelLocation();points=[];marker=null;updateRoute();}};
+byId('demo').onclick=()=>{if(editable()){cancelLocation();points=[[lat,lon],[Math.min(85,lat+.0045),lon]];zoom=16;updateRoute();draw();}};
+byId('coordinates').oninput=cancelLocation;
+function parseCoordinates(text){const lines=text.trim().split(/\r?\n/).map(line=>line.trim()).filter(Boolean),number=/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;if(lines.length<1||lines.length>300)return null;const parsed=[];for(const line of lines){const pair=(line.includes(',')?line.split(','):line.split(/\s+/)).map(part=>part.trim());if(pair.length!==2||pair.some(part=>!number.test(part)))return null;const p=pair.map(Number);if(!p.every(Number.isFinite)||Math.abs(p[0])>85||Math.abs(p[1])>180)return null;parsed.push(p);}return parsed;}
+byId('apply').onclick=()=>{if(!editable())return;const parsed=parseCoordinates(byId('coordinates').value);if(!parsed){notice('Mỗi dòng cần một cặp vĩ độ, kinh độ hợp lệ; nhập từ 1 đến 300 dòng.');return;}cancelLocation();points=parsed;marker=null;[lat,lon]=points[0];updateRoute();draw();if(points.length===1)notice('Đã đặt điểm A và tâm bản đồ. Chọn thêm B trên bản đồ hoặc nhập dòng thứ hai.');};
+function speedLabel(){byId('speed').value=speed;byId('speedValue').textContent=speed.toFixed(1);let seconds=speed>0?Math.round(3600/speed):null;byId('pace').textContent=seconds===null?'— /km':Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+' /km';}
+function changeSpeed(value){speed=Number(value);speedLabel();save();if(current.ready)native.command('speed',JSON.stringify({speed}));}
+byId('speed').onpointerdown=()=>editingSpeed=true;byId('speed').onpointerup=()=>editingSpeed=false;byId('speed').onpointercancel=()=>editingSpeed=false;
+byId('speed').oninput=e=>changeSpeed(e.target.value);document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>changeSpeed(b.dataset.speed));
+byId('hold').onclick=()=>{if(points.length<2){notice('Cần cả A và B để phát tuyến. Chọn thêm B trên bản đồ hoặc nhập dòng tọa độ thứ hai.');return;}const d=length();if(d<1||d>100000){notice('Chọn tuyến từ 1 m đến 100 km.');return;}cancelLocation();native.command('hold',JSON.stringify({points,speed}));};
+byId('play').onclick=()=>native.command('play','{}');byId('pause').onclick=()=>native.command('pause','{}');
+byId('stop').onclick=()=>native.command('stop','{}');byId('follow').onclick=()=>{if(marker)centerOn(marker[0],marker[1]);openMap();};
+const names={IDLE:'Sẵn sàng',CONNECTING:'Đang chuẩn bị',HOLDING:'Đang giữ A',RUNNING:'Đang phát',PAUSED:'Tạm dừng',ARRIVED:'Đã tới B',STOPPING:'Đang tắt'};
+function refresh(){try{current=JSON.parse(native.snapshot());}catch(e){return;}byId('state').textContent=names[current.state]||current.state;byId('message').textContent=current.message||'';const busy=current.state!=='IDLE';byId('openMap').textContent=busy?'Xem tuyến trên Google Maps':'Chọn tuyến trên Google Maps';
+ byId('center').disabled=busy||locating;
+ for(const id of ['hold','undo','clear','demo','apply','coordinates'])byId(id).disabled=busy;
+ byId('play').disabled=!current.ready||current.state==='RUNNING'||current.state==='ARRIVED';byId('play').textContent=current.state==='PAUSED'?'② Tiếp tục':'② Phát tuyến';
+ byId('pause').disabled=!current.ready||current.state!=='RUNNING';byId('stop').disabled=!busy||current.state==='STOPPING';byId('speed').disabled=current.state==='STOPPING';
+ document.querySelectorAll('[data-speed]').forEach(b=>b.disabled=current.state==='STOPPING');
+ if(current.distance!==undefined){byId('distance').textContent=Math.round(current.distance).toLocaleString('vi-VN');const sec=Math.floor(current.seconds||0);byId('elapsed').textContent=Math.floor(sec/60).toString().padStart(2,'0')+':'+String(sec%60).padStart(2,'0');byId('total').textContent=Math.round(current.total).toLocaleString('vi-VN');byId('progress').style.width=(100*current.distance/current.total)+'%';}
+ if(busy&&current.latitude!==undefined){marker=[current.latitude,current.longitude];if(!editingSpeed&&Number.isFinite(current.speed)&&speed!==current.speed){speed=current.speed;speedLabel();}draw();}
+}
+speedLabel();updateRoute();refresh();setInterval(refresh,500);
+</script>
+</body></html>
