@@ -19,16 +19,20 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
+
+    - name: Thiết lập Gradle và tự động sinh file gradlew
+      run: |
+        cd ./Vrace-fake-gps-main/gps-controller
+        gradle wrapper
 
     - name: Cấp quyền thực thi cho Gradle Wrapper
-      run: chmod +x ./Vrace-fake-gps-main/gradlew
+      run: chmod +x ./Vrace-fake-gps-main/gps-controller/gradlew
 
     - name: Tiến hành Build file APK (Debug)
-      run: ./Vrace-fake-gps-main/gradlew assembleDebug --project-dir ./Vrace-fake-gps-main
+      run: ./Vrace-fake-gps-main/gps-controller/gradlew assembleDebug --project-dir ./Vrace-fake-gps-main/gps-controller
 
     - name: Tải file APK lên Artifacts để tải về
       uses: actions/upload-artifact@v4
       with:
         name: app-debug-apk
-        path: ./Vrace-fake-gps-main/app/build/outputs/apk/debug/app-debug.apk
+        path: ./Vrace-fake-gps-main/gps-controller/app/build/outputs/apk/debug/app-debug.apk
