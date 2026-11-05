@@ -10,6 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: ./Vrace-fake-gps-main
+
     steps:
     - name: Checkout mã nguồn
       uses: actions/checkout@v4
@@ -31,4 +35,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: app-debug-apk
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: ${{ github.workspace }}/Vrace-fake-gps-main/app/build/outputs/apk/debug/app-debug.apk
